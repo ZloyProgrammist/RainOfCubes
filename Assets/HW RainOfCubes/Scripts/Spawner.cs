@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -5,37 +6,36 @@ using UnityEngine.Pool;
 public class Spawner : MonoBehaviour
 {
     [Header("Префаб объекта")]
-    [SerializeField] private GameObject _prefab;
+    [SerializeField] private FallingCube _prefab;
 
     [Header("Точки спавна (пустышки над платформами)")]
     [SerializeField] private List<GameObject> _spawnPoints;
 
     [Header("Интервал спавна (сек)")]
-    [SerializeField] private float _firstSpawnDelay = 0f;
     [SerializeField] private float _repeatRate = 5f;
 
     [Header("Настройки пула объектов")]
     [SerializeField] private int _poolCapacity = 5;
     [SerializeField] private int _poolMaxSize = 10;
 
-    private ObjectPool<GameObject> _pool;
+    private ObjectPool<FallingCube> _pool;
     private bool _isPendingSpawn;
     private bool _isDisposed;
+    private bool _isSpawning = false;
+    private Coroutine _spawnRoutine;
 
     private void Awake()
     {
-        _pool = new ObjectPool<GameObject> (
+        _pool = new ObjectPool<FallingCube> (
         createFunc: () =>
         {
             var obj = Instantiate(_prefab, transform);
-
-            if (obj.TryGetComponent(out FallingCube component))
-                component.Initialize(OnObjectReturned);
+            obj.Initialize(OnObjectReturned);
 
             return obj;
         },
         actionOnGet: (obj) => ActionOnGet(obj),
-        actionOnRelease: (obj) => obj.SetActive(false),
+        actionOnRelease: (obj) => obj.gameObject.SetActive(false),
         actionOnDestroy: (obj) => Destroy(obj),
         collectionCheck: true,
         defaultCapacity: _poolCapacity,
@@ -44,7 +44,28 @@ public class Spawner : MonoBehaviour
 
     private void Start()
     {
-        InvokeRepeating(nameof(TrySpawnObject), _firstSpawnDelay, _repeatRate);
+        _isSpawning = true;
+        _spawnRoutine = StartCoroutine(SpawnLoop());
+    }
+
+    private void OnDestroy()
+    {
+        _isSpawning = false;
+
+        if (_spawnRoutine != null)
+            StopCoroutine(_spawnRoutine);
+
+        _isDisposed = true;
+        _pool?.Dispose();
+    }
+
+    private IEnumerator SpawnLoop()
+    {
+        while (_isSpawning)
+        {
+            TrySpawnObject();
+            yield return new WaitForSeconds(_repeatRate);
+        }
     }
 
     private void TrySpawnObject()
@@ -58,14 +79,11 @@ public class Spawner : MonoBehaviour
         _pool.Get();
     }
 
-    private void ActionOnGet(GameObject obj)
+    private void ActionOnGet(FallingCube cube)
     {
-        obj.transform.position = GetRandomSpawnPointPosition();
-
-        if (obj.TryGetComponent<FallingCube>(out var cube))
-            cube.ResetState();
-
-        obj.SetActive(true);
+        cube.transform.position = GetRandomSpawnPointPosition();
+        cube.ResetState();
+        cube.gameObject.SetActive(true);
     }
 
     private void OnObjectReturned(FallingCube cube)
@@ -73,20 +91,13 @@ public class Spawner : MonoBehaviour
         if (_isDisposed || cube == null) 
             return;
 
-        _pool.Release(cube.gameObject);
+        _pool.Release(cube);
 
         if (_isPendingSpawn)
         {
             _isPendingSpawn = false;
             TrySpawnObject();
         }
-    }
-
-    private void OnDestroy()
-    {
-        CancelInvoke(nameof(TrySpawnObject));
-        _isDisposed = true;
-        _pool?.Dispose();
     }
 
     private Vector3 GetRandomSpawnPointPosition()

@@ -745,14 +745,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 695bf8acbf103244bb87031b343667d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _prefab: {fileID: 2647720399479090360, guid: 3270576e6f7776b428f1c6dbe99557a9, type: 3}
+  _prefab: {fileID: -4190675968777480773, guid: 3270576e6f7776b428f1c6dbe99557a9, type: 3}
   _spawnPoints:
   - {fileID: 1878570611}
   - {fileID: 1189377014}
   - {fileID: 309891327}
   - {fileID: 92418073}
   - {fileID: 246734897}
-  _firstSpawnDelay: 0
   _repeatRate: 2
   _poolCapacity: 5
   _poolMaxSize: 10
